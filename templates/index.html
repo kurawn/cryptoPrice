@@ -1,0 +1,90 @@
+{% load static %}
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/css/select2.min.css" rel="stylesheet" />
+
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-beta.1/dist/js/select2.min.js"></script>
+
+<script>
+    function loadPairs() {
+        const exchange = document.getElementById('id_exchange').value;
+        const pairSelect = document.getElementById('id_pair');
+
+        if (exchange) {
+            pairSelect.disabled = false;
+
+            $(pairSelect).select2({
+                ajax: {
+                    url: `/autocomplete/pairs/?exchange=${exchange}`,
+                    dataType: 'json',
+                    delay: 250,
+                    data: function (params) {
+                        return {
+                            q: params.term || ''
+                        };
+                    },
+                    processResults: function (data) {
+                        if (Array.isArray(data)) {
+                            return {
+                                results: data.map(function (pair) {
+                                    return { id: pair, text: pair };
+                                })
+                            };
+                        } else {
+                            console.error("Unexpected data format:", data);
+                            return { results: [] };
+                        }
+                    },
+                    cache: true
+                },
+                placeholder: 'Select a pair',
+                allowClear: true,
+                minimumInputLength: 0 
+            });
+            
+            $(pairSelect).append('<option value="" selected>Select a pair</option>').trigger('change');
+        } else {
+            pairSelect.disabled = true;
+            $(pairSelect).html('<option value="">Select a pair</option>');
+        }
+    }
+
+    function fetchPriceData() {
+        const exchange = $('#id_exchange').val();
+        const pair = $('#id_pair').val();
+
+        $.ajax({
+            url: `/api/prices/`,
+            data: { exchange: exchange, pair: pair },
+            method: 'GET',
+            success: function (data) {
+                $('#output').text(JSON.stringify(data, null, 2));
+            },
+            error: function () {
+                $('#output').text('Error fetching data');
+            }
+        });
+    }
+</script>
+
+<form onsubmit="event.preventDefault(); fetchPriceData();">
+    <label for="id_exchange">Exchange:</label>
+    <select id="id_exchange" name="exchange" onchange="loadPairs()">
+        <option value="">Select an exchange</option>
+        <option value="binance">Binance</option>
+        <option value="kraken">Kraken</option>
+    </select>
+    <br><br>
+
+    <label for="id_pair">Pair:</label>
+    <select id="id_pair" name="pair" disabled style="width: 100%;">
+        <option value="">Select a pair</option> 
+    </select>
+    <br><br>
+
+    <button type="submit">Get Price Data</button>
+</form>
+
+<h2>Price Data:</h2>
+<pre id="output"></pre>
